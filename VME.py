@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from graphviz import Digraph
+import graphviz  # Cambio clave: importamos el módulo completo
 
 def pedir_probabilidades(nombre):
     st.sidebar.markdown(f"### Probabilidades para {nombre}")
@@ -45,35 +45,42 @@ def mostrar_resultados(nombre_opcion, ingreso1, prob1, ingreso2, prob2, vme, cos
     
     st.metric(f"VME {nombre_opcion}", f"${vme:,.2f}")
 
-def generar_arbol_decision(vme_a, vme_b, ingresos_a1, ingresos_a2, prob_a1, prob_a2, ingresos_b1, ingresos_b2, prob_b1, prob_b2, costo_estudio):
-    """Genera un gráfico del árbol de decisión usando graphviz."""
-    dot = Digraph(comment='Árbol de Decisión')
-    dot.attr(rankdir='LR')  # Orientación horizontal
-
-    # Nodo raíz (decisión)
-    dot.node('D', 'Decisión', shape='diamond')
-
-    # Opción A (b)
-    dot.node('A', 'Opción (b)\n(Sin estudio)', shape='box')
-    dot.edge('D', 'A', label=f'VME: ${vme_a:,.2f}')
-
-    # Escenarios de la Opción A
-    dot.node('A1', f'Escenario 1\nProb: {prob_a1:.2f}\nIngreso: ${ingresos_a1:,.2f}', shape='ellipse')
-    dot.node('A2', f'Escenario 2\nProb: {prob_a2:.2f}\nIngreso: ${ingresos_a2:,.2f}', shape='ellipse')
-    dot.edge('A', 'A1')
-    dot.edge('A', 'A2')
-
-    # Opción B (c)
-    dot.node('B', 'Opción (c)\n(Con estudio)', shape='box')
-    dot.edge('D', 'B', label=f'Costo: ${costo_estudio:,.2f}\nVME: ${vme_b:,.2f}')
-
-    # Escenarios de la Opción B
-    dot.node('B1', f'Escenario 1\nProb: {prob_b1:.2f}\nIngreso Neto: ${ingresos_b1:,.2f}', shape='ellipse')
-    dot.node('B2', f'Escenario 2\nProb: {prob_b2:.2f}\nIngreso Neto: ${ingresos_b2:,.2f}', shape='ellipse')
-    dot.edge('B', 'B1')
-    dot.edge('B', 'B2')
-
-    return dot
+def generar_arbol_decision(vme_a, vme_b, ingresos_a1, ingresos_a2, prob_a1, prob_a2, 
+                          ingresos_b1, ingresos_b2, prob_b1, prob_b2, costo_estudio):
+    """Genera un gráfico del árbol de decisión"""
+    try:
+        dot = graphviz.Digraph(comment='Árbol de Decisión')  # Usamos graphviz.Digraph directamente
+        dot.attr(rankdir='LR', size='10,8', dpi='300')  # Mejor visualización
+        
+        # Nodo raíz
+        dot.node('D', 'Decisión', shape='diamond', fontsize='12')
+        
+        # Opción A
+        dot.node('A', 'Opción (b)\n(Sin estudio)', shape='box')
+        dot.edge('D', 'A', label=f'VME: ${vme_a:,.2f}', fontsize='10')
+        
+        # Escenarios A
+        dot.node('A1', f'Escenario 1\nProb: {prob_a1:.0%}\nIngreso: ${ingresos_a1:,.0f}')
+        dot.node('A2', f'Escenario 2\nProb: {prob_a2:.0%}\nIngreso: ${ingresos_a2:,.0f}')
+        dot.edge('A', 'A1')
+        dot.edge('A', 'A2')
+        
+        # Opción B
+        dot.node('B', 'Opción (c)\n(Con estudio)', shape='box')
+        dot.edge('D', 'B', label=f'Costo: ${costo_estudio:,.0f}\nVME: ${vme_b:,.0f}')
+        
+        # Escenarios B
+        dot.node('B1', f'Escenario 1\nProb: {prob_b1:.0%}\nNeto: ${ingresos_b1:,.0f}')
+        dot.node('B2', f'Escenario 2\nProb: {prob_b2:.0%}\nNeto: ${ingresos_b2:,.0f}')
+        dot.edge('B', 'B1')
+        dot.edge('B', 'B2')
+        
+        return dot
+        
+    except Exception as e:
+        st.error(f"Error al generar el gráfico: {str(e)}")
+        st.info("Verifica que las dependencias de Graphviz estén instaladas")
+        return None
 
 def main():
     st.set_page_config(page_title="Calculador VME", page_icon="📈", layout="wide")
@@ -86,88 +93,104 @@ def main():
         3. Los resultados se calcularán automáticamente.
         """)
     
-    # Valores por defecto
-    unidades_a1, unidades_a2 = 100000, 75000
-    unidades_b1, unidades_b2 = 75000, 70000
-    precio_a1 = precio_a2 = 550.0
-    precio_b1 = precio_b2 = 750.0
-    prob_a1, prob_a2 = 0.6, 0.4
-    prob_b1, prob_b2 = 0.7, 0.3
-    costo_estudio = 100000.0
+    # Configuración de valores por defecto
+    config = {
+        'unidades_a1': 100000,
+        'unidades_a2': 75000,
+        'unidades_b1': 75000,
+        'unidades_b2': 70000,
+        'precio_a1': 550.0,
+        'precio_a2': 550.0,
+        'precio_b1': 750.0,
+        'precio_b2': 750.0,
+        'prob_a1': 0.6,
+        'prob_a2': 0.4,
+        'prob_b1': 0.7,
+        'prob_b2': 0.3,
+        'costo_estudio': 100000.0
+    }
     
-    personalizar = st.sidebar.toggle("Personalizar valores", True, key="personalizar_toggle")
+    # Interfaz de usuario
+    personalizar = st.sidebar.toggle("Personalizar valores", True)
     
     if personalizar:
         st.sidebar.header("Parámetros Opción (b)")
         col1, col2 = st.sidebar.columns(2)
-        unidades_a1 = col1.number_input("Unidades Esc. 1 (b)", min_value=0, max_value=1000000, value=unidades_a1, key="unidades_a1")
-        precio_a1 = col2.number_input("Precio unitario ($)", min_value=0.0, max_value=10000.0, value=float(precio_a1), step=1.0, format="%.2f", key="precio_a1")
+        config['unidades_a1'] = col1.number_input("Unidades Esc. 1 (b)", min_value=0, value=config['unidades_a1'])
+        config['precio_a1'] = col2.number_input("Precio unitario ($)", min_value=0.0, value=float(config['precio_a1']), format="%.2f")
         
         col3, col4 = st.sidebar.columns(2)
-        unidades_a2 = col3.number_input("Unidades Esc. 2 (b)", min_value=0, max_value=1000000, value=unidades_a2, key="unidades_a2")
-        precio_a2 = col4.number_input("Precio unitario ($)", min_value=0.0, max_value=10000.0, value=float(precio_a2), step=1.0, format="%.2f", key="precio_a2")
+        config['unidades_a2'] = col3.number_input("Unidades Esc. 2 (b)", min_value=0, value=config['unidades_a2'])
+        config['precio_a2'] = col4.number_input("Precio unitario ($)", min_value=0.0, value=float(config['precio_a2']), format="%.2f")
         
-        prob_result = pedir_probabilidades("Opción b")
-        if prob_result[0] is not None:
-            prob_a1, prob_a2 = prob_result
+        prob_a = pedir_probabilidades("Opción b")
+        if prob_a[0] is not None:
+            config['prob_a1'], config['prob_a2'] = prob_a
         
         st.sidebar.header("Parámetros Opción (c)")
         col5, col6 = st.sidebar.columns(2)
-        unidades_b1 = col5.number_input("Unidades Esc. 1 (c)", min_value=0, max_value=1000000, value=unidades_b1, key="unidades_b1")
-        precio_b1 = col6.number_input("Precio unitario ($)", min_value=0.0, max_value=10000.0, value=float(precio_b1), step=1.0, format="%.2f", key="precio_b1")
+        config['unidades_b1'] = col5.number_input("Unidades Esc. 1 (c)", min_value=0, value=config['unidades_b1'])
+        config['precio_b1'] = col6.number_input("Precio unitario ($)", min_value=0.0, value=float(config['precio_b1']), format="%.2f")
         
         col7, col8 = st.sidebar.columns(2)
-        unidades_b2 = col7.number_input("Unidades Esc. 2 (c)", min_value=0, max_value=1000000, value=unidades_b2, key="unidades_b2")
-        precio_b2 = col8.number_input("Precio unitario ($)", min_value=0.0, max_value=10000.0, value=float(precio_b2), step=1.0, format="%.2f", key="precio_b2")
+        config['unidades_b2'] = col7.number_input("Unidades Esc. 2 (c)", min_value=0, value=config['unidades_b2'])
+        config['precio_b2'] = col8.number_input("Precio unitario ($)", min_value=0.0, value=float(config['precio_b2']), format="%.2f")
         
-        costo_estudio = st.sidebar.number_input("Costo estudio ($)", min_value=0.0, max_value=1000000.0, value=float(costo_estudio), step=1000.0, format="%.2f", key="costo_estudio")
-        prob_result = pedir_probabilidades("Opción c")
-        if prob_result[0] is not None:
-            prob_b1, prob_b2 = prob_result
+        config['costo_estudio'] = st.sidebar.number_input("Costo estudio ($)", min_value=0.0, value=float(config['costo_estudio']), format="%.2f")
+        prob_b = pedir_probabilidades("Opción c")
+        if prob_b[0] is not None:
+            config['prob_b1'], config['prob_b2'] = prob_b
     
     # Validación final
-    if None in [prob_a1, prob_a2, prob_b1, prob_b2]:
-        st.warning("Por favor ajusta las probabilidades para que sumen 1.0 en ambas opciones")
+    if None in [config['prob_a1'], config['prob_a2'], config['prob_b1'], config['prob_b2']]:
+        st.warning("Ajusta las probabilidades para que sumen 1.0 en ambas opciones")
         st.stop()
     
     # Cálculos
     ingresos_a1, ingresos_a2, vme_a = calcular_vme_opcion_a(
-        unidades_a1, precio_a1, prob_a1, unidades_a2, precio_a2, prob_a2
+        config['unidades_a1'], config['precio_a1'], config['prob_a1'],
+        config['unidades_a2'], config['precio_a2'], config['prob_a2']
     )
     
     ingresos_b1, ingresos_b2, vme_b = calcular_vme_opcion_b(
-        unidades_b1, precio_b1, prob_b1, unidades_b2, precio_b2, prob_b2, costo_estudio
+        config['unidades_b1'], config['precio_b1'], config['prob_b1'],
+        config['unidades_b2'], config['precio_b2'], config['prob_b2'],
+        config['costo_estudio']
     )
     
     # Resultados
-    mostrar_resultados("Opción (b)", ingresos_a1, prob_a1, ingresos_a2, prob_a2, vme_a)
-    mostrar_resultados("Opción (c)", ingresos_b1, prob_b1, ingresos_b2, prob_b2, vme_b, costo_estudio)
+    mostrar_resultados("Opción (b)", ingresos_a1, config['prob_a1'], ingresos_a2, config['prob_a2'], vme_a)
+    mostrar_resultados("Opción (c)", ingresos_b1, config['prob_b1'], ingresos_b2, config['prob_b2'], vme_b, config['costo_estudio'])
     
     st.divider()
     st.header("Recomendación")
-    
-    if vme_b > vme_a:
-        st.success(f"**Elegir la OPCIÓN (c)** - VME: ${vme_b:,.2f} vs ${vme_a:,.2f}")
-    else:
-        st.success(f"**Elegir la OPCIÓN (b)** - VME: ${vme_a:,.2f} vs ${vme_b:,.2f}")
+    mejor_opcion = "(c)" if vme_b > vme_a else "(b)"
+    st.success(f"**Elegir la OPCIÓN {mejor_opcion}** - VME: ${max(vme_a, vme_b):,.2f}")
     
     # Gráfico comparativo
-    chart_data = pd.DataFrame({
+    st.bar_chart(pd.DataFrame({
         "Opción": ["(b)", "(c)"],
         "VME": [vme_a, vme_b]
-    })
-    st.bar_chart(chart_data.set_index("Opción"), use_container_width=True)
-
+    }).set_index("Opción"))
+    
     # Árbol de decisión
     st.divider()
     st.header("Árbol de Decisión")
     arbol = generar_arbol_decision(
         vme_a, vme_b,
-        ingresos_a1, ingresos_a2, prob_a1, prob_a2,
-        ingresos_b1, ingresos_b2, prob_b1, prob_b2,
-        costo_estudio
+        ingresos_a1, ingresos_a2, config['prob_a1'], config['prob_a2'],
+        ingresos_b1, ingresos_b2, config['prob_b1'], config['prob_b2'],
+        config['costo_estudio']
     )
-    st.graphviz_chart(arbol)
+    
+    if arbol:
+        st.graphviz_chart(arbol)
+    else:
+        st.warning("""
+        El gráfico del árbol no se pudo generar. Verifica que:
+        1. El archivo `packages.txt` existe y contiene `graphviz`
+        2. El archivo `requirements.txt` incluye `python-graphviz`
+        """)
 
 if __name__ == "__main__":
     main()
