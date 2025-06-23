@@ -1,6 +1,4 @@
-streamlit==1.32.2
-pandas==2.1.4
+streamlit
+pandas
 graphviz
-Digraph
 python-graphviz
-python-dotenv==1.0.0  # (Opcional, para variables de entorno)
